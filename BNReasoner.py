@@ -53,7 +53,7 @@ class BNReasoner:
 
         # Check if X and Y are connected through edges in a pruned network.
         # If not, then they are d-separated.
-        return not nx.has_path(self.bn, X, Y)
+        return not nx.has_path(self.bn.structure, X, Y)
 
     def independence(self, X: str, Y: str, Z: str) -> bool:
         # Each d-separation implies an independence in a Bayesian network
@@ -93,7 +93,7 @@ class BNReasoner:
  
         return final_cpt.drop([X], axis=1)
         
-    def factor_multiplication():
+    def factor_multiplication(cpt_1: pd.DataFrame, cpt_2: pd.DataFrame):
         pass
 
 if __name__ == '__main__':
