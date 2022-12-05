@@ -60,10 +60,10 @@ class BNReasoner:
         return self.d_separation(X, Y, Z) 
 
     def marginalization(self, X: str, cpt: pd.DataFrame) -> pd.DataFrame:
-        Y = cpt.loc[:, ~cpt.columns.isin([X, 'p'])].columns.tolist()
+        Y = cpt.loc[:, ~cpt.columns.isin([X, 'p', 'Instantiations'])].columns.tolist()
 
         # Group by the remaining variables and sum
-        return cpt.loc[:, ~cpt.columns.isin([X])].groupby(Y, as_index=False).sum() 
+        return cpt.loc[:, ~cpt.columns.isin([X])].groupby(Y).sum().reset_index()
 
     def maxing_out(self, X: str, cpt: pd.DataFrame) -> pd.DataFrame:
         # Exclude X and p from cpt
@@ -72,9 +72,9 @@ class BNReasoner:
         # Group by the remaining variables and get max        
         # For each row in maxed result, check what instantiation of X led
         # to the maximized value and return it
-        maxed_cpt = cpt.loc[:, ~cpt.columns.isin([X])].groupby(Y, as_index=False).max()
+        maxed_cpt = cpt.loc[:, ~cpt.columns.isin([X])].groupby(Y).max().reset_index()
         keys = list(maxed_cpt.columns.values)
-        final_cpt = cpt[cpt.set_index(keys).index.isin(maxed_cpt.set_index(keys).index)]
+        final_cpt = cpt[cpt.set_index(keys).index.isin(maxed_cpt.set_index(keys).index)].reset_index().drop(['index'], axis=1)
         instantiations = []
         for _, row in final_cpt.iterrows():
             if 'Instantiations' in final_cpt:
@@ -93,11 +93,57 @@ class BNReasoner:
  
         return final_cpt.drop([X], axis=1)
         
-    def factor_multiplication(cpt_1: pd.DataFrame, cpt_2: pd.DataFrame):
-        pass
+    def factor_multiplication(self, cpt_1: pd.DataFrame, cpt_2: pd.DataFrame) -> pd.DataFrame:
+        # Get all variables from both
+        Y = cpt_1.loc[:, ~cpt_1.columns.isin(['p', 'Instantiations'])].columns.tolist()
+        Z = cpt_2.loc[:, ~cpt_2.columns.isin(['p', 'Instantiations'])].columns.tolist()
+
+        # Get intersected variables as they will decide what rows to multiply
+        variables = list(dict.fromkeys(Y + Z))
+        intersected = list(set(Y) & set(Z))
+
+        # Prepare data and create new CPT
+        rows = {
+            'p': []
+        }
+        if 'Instantiations' in cpt_1 or 'Instantiations' in cpt_2:
+            rows['Instantiations'] = []
+
+        for variable in variables:
+            rows[variable] = []
+        
+        new_cpt = pd.DataFrame(columns=variables + ['p'])
+
+        # Loop through one CPT, checking what exactly to multiply using the
+        # intersected values
+        for _, row in cpt_1.iterrows():
+            for _, row_2 in cpt_2.iterrows():
+                if all(row[variable] == row_2[variable] for variable in intersected):
+                    rows['p'].append(row['p'] * row_2['p'])
+                    if 'Instantiations' in cpt_1 or 'Instantiations' in cpt_2:
+                        new_instantiation = {}
+                        if 'Instantiations' in cpt_1:
+                            new_instantiation = new_instantiation | row['Instantiations']
+                        if 'Instantiations' in cpt_2:
+                            new_instantiation = new_instantiation | row_2['Instantiations']
+                        
+                        rows['Instantiations'].append(new_instantiation)
+                        
+
+                    for variable in variables:
+                        if variable in cpt_1:
+                            rows[variable].append(row[variable])
+                        else:
+                            rows[variable].append(row_2[variable])
+
+                    
+
+        # Insert everything into new CPT and return
+        for key in rows.keys():
+            new_cpt[key] = rows[key]
+
+        return new_cpt
 
 if __name__ == '__main__':
     bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
-    print(bn_reasoner.bn.get_cpt('Wet Grass?'))
-    print("TESTING")
-    print(bn_reasoner.maxing_out('Sprinkler?', bn_reasoner.maxing_out('Rain?', bn_reasoner.bn.get_cpt('Wet Grass?'))))
+    
