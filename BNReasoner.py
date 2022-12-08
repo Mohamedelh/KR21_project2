@@ -149,58 +149,60 @@ class BNReasoner:
 
         return new_cpt
 
-    def min_degree_ordering(self) -> list[str]:
-        bn = deepcopy(self.bn)
+    def min_degree_ordering(self, X: list[str]) -> list[str]:
+        interaction_graph = self.bn.get_interaction_graph()
+        nodes = deepcopy(X)
         ordering = []
 
-        while bn.get_interaction_graph().nodes:
-            nodes = bn.get_interaction_graph().nodes
-            X = min(bn.get_interaction_graph().degree(nodes), key = lambda t: t[1])[0]            
-            ordering.append(X)
-            neighbors = [neighbor for neighbor in bn.get_interaction_graph().neighbors(X)]
+        while nodes:
+            x = min(interaction_graph.degree(nodes), key = lambda t: t[1])[0]          
+            ordering.append(x)
+            neighbors = [neighbor for neighbor in interaction_graph.neighbors(x)]
             for neighbor in neighbors:
                 for potential_neighbor in neighbors:
-                    if neighbor != potential_neighbor and not bn.get_interaction_graph().has_edge(neighbor, potential_neighbor):
-                        bn.add_edge((neighbor, potential_neighbor))
+                    if neighbor != potential_neighbor and not interaction_graph.has_edge(neighbor, potential_neighbor):
+                        interaction_graph.add_edge((neighbor, potential_neighbor))
 
-            bn.del_var(X)
+            interaction_graph.remove_node(x)
+            nodes.remove(x)
 
         return ordering
 
-    def min_fill_ordering(self) -> list[str]:
-        bn = deepcopy(self.bn)
+    def min_fill_ordering(self, X: list[str]) -> list[str]:
+        interaction_graph = self.bn.get_interaction_graph()
+        nodes = deepcopy(X)
         ordering = []
 
-        while bn.get_interaction_graph().nodes:
-            nodes = bn.get_interaction_graph().nodes
-            X = None
-            X_n_new_edges = None
-            X_edges_to_add = []
+        while nodes:
+            x = None
+            x_n_new_edges = None
+            x_edges_to_add = []
 
             for node in nodes:
-                neighbors = [neighbor for neighbor in bn.get_interaction_graph().neighbors(node)]
+                neighbors = [neighbor for neighbor in interaction_graph.neighbors(node)]
                 new_edges = 0 
                 edges_to_add = []
                 for neighbor in neighbors:
                     for potential_neighbor in neighbors:
-                        if neighbor != potential_neighbor and not bn.get_interaction_graph().has_edge(neighbor, potential_neighbor) and (potential_neighbor, neighbor) not in edges_to_add:
+                        if neighbor != potential_neighbor and not interaction_graph.has_edge(neighbor, potential_neighbor) and (potential_neighbor, neighbor) not in edges_to_add:
                             new_edges += 1
                             edges_to_add.append((neighbor, potential_neighbor))
 
-                if X is None or new_edges < X_n_new_edges:
-                    X = node
-                    X_n_new_edges = new_edges
-                    X_edges_to_add = edges_to_add
+                if x is None or new_edges < x_n_new_edges:
+                    x = node
+                    x_n_new_edges = new_edges
+                    x_edges_to_add = edges_to_add
 
-            ordering.append(X)
-            for edge in X_edges_to_add:
-                bn.add_edge(edge)
+            ordering.append(x)
+            for edge in x_edges_to_add:
+                interaction_graph.add_edge(edge)
 
-            bn.del_var(X)
+            interaction_graph.remove_node(x)
+            nodes.remove(x)
 
         return ordering
 
 if __name__ == '__main__':
     bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
-    print(bn_reasoner.min_fill_ordering())
+    print(bn_reasoner.min_fill_ordering(['Winter?', 'Sprinkler?']))
     
