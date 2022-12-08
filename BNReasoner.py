@@ -202,7 +202,64 @@ class BNReasoner:
 
         return ordering
 
+    def variable_elimination(self, X: list[str], heuristic: str = None) -> pd.DataFrame:
+        # Get all CPTs
+        cpts = self.bn.get_all_cpts()
+
+        # Use order based on selected heuristic
+        if heuristic == "min-degree":
+            order = self.min_degree_ordering(X)
+        elif heuristic == "min-fill":
+            order = self.min_fill_ordering(X)
+        else:
+            order = X
+
+        for variable in order:
+            # Gather all CPTs that contain given variable
+            cpts_to_merge = pd.DataFrame()
+            label = ""
+            for key in list(cpts):
+                if variable in cpts[key]:
+                    if cpts_to_merge.empty:
+                        cpts_to_merge = cpts[key]
+                    else:
+                        cpts_to_merge = self.factor_multiplication(cpts_to_merge, cpts[key])
+
+                    if variable != key:
+                        label += key.replace(variable, "")
+                    cpts.pop(key)
+            
+            # Sum out variable from merged cpt and add it to list of cpts
+            if not cpts_to_merge.empty:
+                cpts[label] = self.marginalization(variable, cpts_to_merge)
+
+        final_cpt = pd.DataFrame()
+
+        for key in list(cpts):
+            if final_cpt.empty:
+                final_cpt = cpts[key]
+            else:
+                final_cpt = self.factor_multiplication(final_cpt, cpts[key])
+
+        return final_cpt
+        
+
+
 if __name__ == '__main__':
     bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
-    print(bn_reasoner.min_fill_ordering(['Winter?', 'Sprinkler?']))
+    cpts = bn_reasoner.bn.get_all_cpts()
+    new_cpt = cpts['Winter?']
+
+    for key in list(cpts):
+        if key != 'Winter?':
+            new_cpt = bn_reasoner.factor_multiplication(new_cpt, cpts[key])
+
+    for i in ['Winter?', 'Rain?', 'Sprinkler?']:
+        new_cpt = bn_reasoner.marginalization(i, new_cpt)
+
+    print("EXPECTED")
+    print(new_cpt)
+
+    print("RECEIVED")
+    print(bn_reasoner.variable_elimination(['Winter?', 'Rain?', 'Sprinkler?']))
     
