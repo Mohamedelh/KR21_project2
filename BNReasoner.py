@@ -24,11 +24,13 @@ class BNReasoner:
 
     def _prune_edges(self, e: pd.Series) -> None:
         for variable in e.keys():
+            # Update CPT of variable with reduced factor
+            self.bn.update_cpt(variable, self.bn.reduce_factor(e, self.bn.get_cpt(variable)))
+
             descendants = self.bn.get_children(variable)
             for descendant in descendants:
                 # Update CPT of descendant with reduced factor
-                reduced_cpt = self.bn.reduce_factor(e, self.bn.get_cpt(descendant))
-                self.bn.update_cpt(descendant, reduced_cpt)
+                self.bn.update_cpt(descendant, self.bn.reduce_factor(e, self.bn.get_cpt(descendant)))
 
                 # Remove edge from network
                 self.bn.del_edge((variable, descendant))
@@ -251,6 +253,10 @@ class BNReasoner:
                 final_cpt = self.factor_multiplication(final_cpt, cpts[key])
 
         return final_cpt
+
+    def marginal_distribution(self, Q: list[str], e: pd.Series = None):
+        bn = deepcopy(self.bn)
+        bn.reduce_factor()
 
 if __name__ == '__main__':
     bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
