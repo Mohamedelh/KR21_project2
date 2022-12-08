@@ -48,17 +48,26 @@ class BNReasoner:
                 self.bn.del_var(variable)   
     
     def d_separation(self, X: list[str], Y: list[str], Z: list[str]) -> bool:
-        # Ensure network is pruned.
-        evidence = {}
+        bn = deepcopy(self.bn)
 
-        for z in Z:
-            evidence[z] = True    
+        while True:
+            leaf_variables = []
+            for variable in self.bn.get_all_variables():
+                if not self.bn.get_children(variable) and variable not in X + Y + Z:
+                    leaf_variables.append(variable)
+                    bn.del_var(variable)
 
-        self.prune_bn(X + Y, pd.Series(evidence))
-
-        # Check if X and Y are connected through edges in a pruned network.
-        # If not, then they are d-separated.
-        return not nx.has_path(self.bn.structure, X, Y)
+            edges = []
+            for z in Z:
+                descendants = self.bn.get_children(z)
+                edges += descendants
+                for descendant in descendants:
+                    bn.del_edge((z, descendant))
+            
+            if not (leaf_variables or edges):
+                # Check if X and Y are connected through edges in a pruned network.
+                # If not, then they are d-separated.
+                 return not nx.has_path(self.bn.structure, X, Y)             
 
     def independence(self, X: list[str], Y: list[str], Z: list[str]) -> bool:
         # Each d-separation implies an independence in a Bayesian network
@@ -242,8 +251,6 @@ class BNReasoner:
                 final_cpt = self.factor_multiplication(final_cpt, cpts[key])
 
         return final_cpt
-        
-
 
 if __name__ == '__main__':
     bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
