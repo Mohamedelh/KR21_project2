@@ -47,15 +47,20 @@ class BNReasoner:
             for variable in leaf_variables:
                 self.bn.del_var(variable)   
     
-    def d_separation(self, X: str, Y: str, Z: str) -> bool:
-        # Ensure network is pruned. 
-        self.prune_bn([X, Y], pd.Series({Z: True}))
+    def d_separation(self, X: list[str], Y: list[str], Z: list[str]) -> bool:
+        # Ensure network is pruned.
+        evidence = {}
+
+        for z in Z:
+            evidence[z] = True    
+
+        self.prune_bn(X + Y, pd.Series(evidence))
 
         # Check if X and Y are connected through edges in a pruned network.
         # If not, then they are d-separated.
         return not nx.has_path(self.bn.structure, X, Y)
 
-    def independence(self, X: str, Y: str, Z: str) -> bool:
+    def independence(self, X: list[str], Y: list[str], Z: list[str]) -> bool:
         # Each d-separation implies an independence in a Bayesian network
         return self.d_separation(X, Y, Z) 
 
