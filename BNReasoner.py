@@ -78,12 +78,42 @@ class BNReasoner:
     def marginalization(self, X: str, cpt: pd.DataFrame) -> pd.DataFrame:
         Y = cpt.loc[:, ~cpt.columns.isin([X, 'p', 'Instantiations'])].columns.tolist()
 
+        if not Y:
+            # Empty set of variables, so only return p (Trival factor)
+            new_cpt = pd.DataFrame()
+            new_cpt['p'] = [sum(cpt['p'].tolist())]
+            if 'Instantiations' in cpt:
+                instantiations = {}
+                for _, row in cpt.iterrows():
+                    instantiations.update(row['Instantiations'])
+                new_cpt['Instantiations'] = instantiations
+
+            return new_cpt
+            
+
         # Group by the remaining variables and sum
         return cpt.loc[:, ~cpt.columns.isin([X])].groupby(Y).sum().reset_index()
 
     def maxing_out(self, X: str, cpt: pd.DataFrame) -> pd.DataFrame:
         # Exclude X and p from cpt
         Y = cpt.loc[:, ~cpt.columns.isin([X, 'p', 'Instantiations'])].columns.tolist()
+
+        if not Y:
+            # Empty set of variables, so only return p (Trival factor)
+            new_cpt = pd.DataFrame()
+            for _, row in cpt.iterrows():
+                if 'p' not in new_cpt or row['p'] > new_cpt['p'].iloc[0]:
+                    new_cpt['p'] = [row['p']]
+                    if 'Instantiations' in cpt:
+                        new_cpt['Instantiations'] = [{
+                            X: row[X]
+                        } | row['Instantiations']]
+                    else:
+                        new_cpt['Instantiations'] = [{
+                            X: row[X]
+                        }]
+                
+            return new_cpt
 
         # Group by the remaining variables and get max        
         # For each row in maxed result, check what instantiation of X led
@@ -254,25 +284,21 @@ class BNReasoner:
 
         return final_cpt
 
-    def marginal_distribution(self, Q: list[str], e: pd.Series = None):
+    def marginal_distribution(self, Q: list[str], e: pd.Series = None, heuristic: str = None) -> pd.DataFrame:
         bn = deepcopy(self.bn)
-        bn.reduce_factor()
+
+        if e:
+            # TODO
+            pass
+
+        # No evidence, just eliminate and return
+        variables_to_eliminate = []
+        for variable in bn.get_all_variables():
+            if variable not in variables_to_eliminate:
+                variables_to_eliminate.append(variable)
+
+        return self.variable_elimination(variables_to_eliminate, heuristic)
 
 if __name__ == '__main__':
     bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
-    cpts = bn_reasoner.bn.get_all_cpts()
-    new_cpt = cpts['Winter?']
-
-    for key in list(cpts):
-        if key != 'Winter?':
-            new_cpt = bn_reasoner.factor_multiplication(new_cpt, cpts[key])
-
-    for i in ['Winter?', 'Rain?', 'Sprinkler?']:
-        new_cpt = bn_reasoner.marginalization(i, new_cpt)
-
-    print("EXPECTED")
-    print(new_cpt)
-
-    print("RECEIVED")
-    print(bn_reasoner.variable_elimination(['Winter?', 'Rain?', 'Sprinkler?']))
-    
+    print(bn_reasoner.maxing_out('Winter?', bn_reasoner.bn.get_cpt('Winter?')))
