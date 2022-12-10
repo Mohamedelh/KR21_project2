@@ -1,3 +1,4 @@
+from ast import Dict
 from copy import deepcopy
 from typing import Union
 import pandas as pd
@@ -243,9 +244,9 @@ class BNReasoner:
 
         return ordering
 
-    def variable_elimination(self, X: list[str], heuristic: str = None) -> pd.DataFrame:
+    def variable_elimination(self, X: list[str], heuristic: str = None, cpts: Dict[str, pd.DataFrame] = None) -> pd.DataFrame:
         # Get all CPTs
-        cpts = self.bn.get_all_cpts()
+        cpts = self.bn.get_all_cpts() if not cpts else cpts
 
         # Use order based on selected heuristic
         if heuristic == "min-degree":
@@ -285,15 +286,28 @@ class BNReasoner:
         return final_cpt
 
     def marginal_distribution(self, Q: list[str], e: pd.Series = None, heuristic: str = None) -> pd.DataFrame:
-        bn = deepcopy(self.bn)
+        if e.any():
+            # Get all cpts
+            cpts = self.bn.get_all_cpts()
 
-        if e:
-            # TODO
-            pass
+            # Reduce all factors with respect to e
+            for variable in cpts.keys():
+                cpts[variable] = self.bn.reduce_factor(e, cpts[variable])
+
+            # Compute the joint marginal P(Q and e)
+            pr_q_and_e = self.variable_elimination(Q + e.keys(), heuristic, cpts)
+
+            # Sum out Q to obtain Pr(e)
+            pr_e = None
+            for variable in e.keys():
+                pr_e = self.marginalization(variable, pr_e) if pr_e else self.marginalization(variable, pr_q_and_e) 
+
+            # Compute Pr(Q|e) through normalization
+            return pr_q_and_e / pr_e
 
         # No evidence, just eliminate and return
         variables_to_eliminate = []
-        for variable in bn.get_all_variables():
+        for variable in self.bn.get_all_variables():
             if variable not in variables_to_eliminate:
                 variables_to_eliminate.append(variable)
 
@@ -301,4 +315,4 @@ class BNReasoner:
 
 if __name__ == '__main__':
     bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
-    print(bn_reasoner.maxing_out('Winter?', bn_reasoner.bn.get_cpt('Winter?')))
+    bn_reasoner.marginal_distribution(['Sprinkler?'], pd.Series({'Winter?': True}))
