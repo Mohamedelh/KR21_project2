@@ -145,9 +145,29 @@ class BNReasoner:
         Y = cpt_1.loc[:, ~cpt_1.columns.isin(['p', 'Instantiations'])].columns.tolist()
         Z = cpt_2.loc[:, ~cpt_2.columns.isin(['p', 'Instantiations'])].columns.tolist()
 
+        if not Y and not Z:
+            # Both are empty, meaning they are trivial factors
+            new_cpt = pd.DataFrame()
+            new_cpt['p'] = [cpt_1['p'].iloc[0] * cpt_2['p'].iloc[0]]
+
+            if 'Instantiations' in cpt_1 or 'Instantiations' in cpt_2:
+                new_instantiation = {}
+                if 'Instantiations' in cpt_1:
+                    new_instantiation = new_instantiation | cpt_1['Instantiations'].iloc[0]
+                if 'Instantiations' in cpt_2:
+                    new_instantiation = new_instantiation | cpt_2['Instantiations'].iloc[0]
+
+            new_cpt['Instantiations'] = [new_instantiation]
+
+            return new_cpt
+
+
         # Get intersected variables as they will decide what rows to multiply
-        variables = list(dict.fromkeys(Y + Z))
         intersected = list(set(Y) & set(Z))
+        if not intersected:
+            raise ValueError("No intersected variable found")
+
+        variables = list(dict.fromkeys(Y + Z))
 
         # Prepare data and create new CPT
         rows = {
@@ -285,7 +305,7 @@ class BNReasoner:
 
         return final_cpt
 
-    def marginal_distribution(self, Q: list[str], e: pd.Series = None, heuristic: str = None) -> pd.DataFrame:
+    def marginal_distribution(self, Q: list[str], e: pd.Series, heuristic: str = None) -> pd.DataFrame:
         if e.any():
             # Get all cpts
             cpts = self.bn.get_all_cpts()
@@ -312,6 +332,14 @@ class BNReasoner:
                 variables_to_eliminate.append(variable)
 
         return self.variable_elimination(variables_to_eliminate, heuristic)
+
+    def map(Q: list[str], e: pd.Series):
+        if e.any():
+            pass
+
+    def mpe(e: pd.Series):
+        if e.any():
+            pass
 
 if __name__ == '__main__':
     bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
