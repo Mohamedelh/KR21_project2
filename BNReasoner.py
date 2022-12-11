@@ -380,4 +380,4 @@ class BNReasoner:
         return mpe   
 
 if __name__ == '__main__':
-    bn_reasoner = BNReasoner('testing/lecture_example2.BIFXML')
+    bn_reasoner = BNReasoner('/Users/orbaytopal/Desktop/VUAI.nosync/Master/KR21_project2/Evaldata/Bif_imdb_MovieLens.xml')
