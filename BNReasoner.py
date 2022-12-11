@@ -119,12 +119,11 @@ class BNReasoner:
         # Group by the remaining variables and get max        
         # For each row in maxed result, check what instantiation of X led
         # to the maximized value and return it
-        maxed_cpt = cpt.loc[:, ~cpt.columns.isin([X])].groupby(Y).max().reset_index()
-        keys = list(maxed_cpt.columns.values)
-        final_cpt = cpt[cpt.set_index(keys).index.isin(maxed_cpt.set_index(keys).index)].reset_index().drop(['index'], axis=1)
+        maxed_cpt = cpt.loc[cpt.groupby(Y)['p'].idxmax()]
         instantiations = []
-        for _, row in final_cpt.iterrows():
-            if 'Instantiations' in final_cpt:
+
+        for _, row in maxed_cpt.iterrows():
+            if 'Instantiations' in cpt:
                 instantiations.append({
                     X: row[X]
                 } | row['Instantiations'])
@@ -133,12 +132,9 @@ class BNReasoner:
                     X: row[X]
                 })
 
-        if 'Instantiations' in final_cpt:
-            final_cpt = final_cpt.drop(['Instantiations'], axis=1)
-
-        final_cpt.insert(len(final_cpt.columns), 'Instantiations', instantiations)
+        maxed_cpt['Instantiations'] = instantiations
  
-        return final_cpt.drop([X], axis=1)
+        return maxed_cpt.drop([X], axis=1)
         
     def factor_multiplication(self, cpt_1: pd.DataFrame, cpt_2: pd.DataFrame) -> pd.DataFrame:
         # Get all variables from both
@@ -264,83 +260,124 @@ class BNReasoner:
 
         return ordering
 
-    def variable_elimination(self, X: list[str], heuristic: str = None, cpts: Dict[str, pd.DataFrame] = None) -> pd.DataFrame:
+    def variable_elimination(self, X: list[str], order: list[str], cpts: dict[str, pd.DataFrame] = None) -> dict[str, pd.DataFrame]:
         # Get all CPTs
         cpts = self.bn.get_all_cpts() if not cpts else cpts
 
-        # Use order based on selected heuristic
-        if heuristic == "min-degree":
-            order = self.min_degree_ordering(X)
-        elif heuristic == "min-fill":
-            order = self.min_fill_ordering(X)
-        else:
-            order = X
-
         for variable in order:
-            # Gather all CPTs that contain given variable
-            cpts_to_merge = pd.DataFrame()
-            label = ""
-            for key in list(cpts):
-                if variable in cpts[key]:
-                    if cpts_to_merge.empty:
-                        cpts_to_merge = cpts[key]
-                    else:
-                        cpts_to_merge = self.factor_multiplication(cpts_to_merge, cpts[key])
+            if variable in X:
+                # Gather all CPTs that contain given variable
+                cpts_to_merge = pd.DataFrame()
+                label = variable
+                for key in list(cpts):
+                    if variable in cpts[key]:
+                        if cpts_to_merge.empty:
+                            cpts_to_merge = cpts[key]
+                        else:
+                            cpts_to_merge = self.factor_multiplication(cpts_to_merge, cpts[key])
 
-                    if variable != key:
-                        label += key.replace(variable, "")
-                    cpts.pop(key)
-            
-            # Sum out variable from merged cpt and add it to list of cpts
-            if not cpts_to_merge.empty:
-                cpts[label] = self.marginalization(variable, cpts_to_merge)
+                        if variable != key:
+                            label += key.replace(variable, "")
+                        cpts.pop(key)
+                
+                # Sum out variable from merged cpt and add it to list of cpts
+                if not cpts_to_merge.empty:
+                    cpts[label] = self.marginalization(variable, cpts_to_merge)
+        
+        return cpts
 
-        final_cpt = pd.DataFrame()
+    def marginal_distribution(self, Q: list[str], e: pd.Series, order: list[str]) -> pd.DataFrame:
+        # Get all cpts
+        cpts = self.bn.get_all_cpts()
 
-        for key in list(cpts):
+        # Gather all variables that need to be eliminated to compute the joint marginal
+        variables_to_eliminate = []
+        for variable in self.bn.get_all_variables():
+            if variable not in Q:
+                variables_to_eliminate.append(variable)
+
+        # Reduce all factors with respect to e, if given
+        if e.any():
+            for variable in cpts.keys():
+                cpts[variable] = self.bn.reduce_factor(e, cpts[variable])
+
+        # Compute the distribution
+        results = self.variable_elimination(variables_to_eliminate, order, cpts)
+        distribution = pd.DataFrame()
+        for key in list(results):
             if final_cpt.empty:
                 final_cpt = cpts[key]
             else:
                 final_cpt = self.factor_multiplication(final_cpt, cpts[key])
 
-        return final_cpt
-
-    def marginal_distribution(self, Q: list[str], e: pd.Series, heuristic: str = None) -> pd.DataFrame:
         if e.any():
-            # Get all cpts
-            cpts = self.bn.get_all_cpts()
+            # Sum out Q to obtain Pr(e)
+            pr_e = None
+            for variable in Q:
+                pr_e = self.marginalization(variable, pr_e) if pr_e else self.marginalization(variable, distribution) 
 
+            # Compute Pr(Q|e) through normalization
+            return distribution / pr_e
+
+        # No evidence, just return distribution
+        return distribution
+
+    def map(self, Q: list[str], e: pd.Series, order: list[str]):
+        # Get all cpts
+        cpts = self.bn.get_all_cpts()
+
+        # Gather all variables that need to be eliminated
+        variables_to_eliminate = []
+        for variable in self.bn.get_all_variables():
+            if variable not in Q:
+                variables_to_eliminate.append(variable)
+
+        # If evidence, reduce factors with respect to e
+        if e.any():
             # Reduce all factors with respect to e
             for variable in cpts.keys():
                 cpts[variable] = self.bn.reduce_factor(e, cpts[variable])
 
-            # Compute the joint marginal P(Q and e)
-            pr_q_and_e = self.variable_elimination(Q + e.keys(), heuristic, cpts)
+        # Eliminate
+        results = self.variable_elimination(variables_to_eliminate, order, cpts)
+        
+        # Max out Q according to order, to obtain most likely instances
+        map = pd.DataFrame()
+        for variable in order:
+            if variable in Q:
+                for key in list(results):
+                    if variable in results[key]:
+                        if map.empty:
+                            map = results[key]
+                        else:
+                            map = self.factor_multiplication(map, results[key])
+                        results.pop(key)
+            map = self.maxing_out(variable, map)
 
-            # Sum out Q to obtain Pr(e)
-            pr_e = None
-            for variable in e.keys():
-                pr_e = self.marginalization(variable, pr_e) if pr_e else self.marginalization(variable, pr_q_and_e) 
+        return map            
 
-            # Compute Pr(Q|e) through normalization
-            return pr_q_and_e / pr_e
+    def mpe(self, e: pd.Series, order: list[str]):
+        # Get all cpts and variables
+        cpts = self.bn.get_all_cpts()
+        variables = self.bn.get_all_variables()
 
-        # No evidence, just eliminate and return
-        variables_to_eliminate = []
-        for variable in self.bn.get_all_variables():
-            if variable not in variables_to_eliminate:
-                variables_to_eliminate.append(variable)
+        # Reduce all factors with respect to e
+        for variable in variables:
+            cpts[variable] = self.bn.reduce_factor(e, cpts[variable])
 
-        return self.variable_elimination(variables_to_eliminate, heuristic)
+        # Max out Q according to order, to obtain most likely instances
+        mpe = pd.DataFrame()
+        for variable in order:
+            for key in list(cpts):
+                if variable in cpts[key]:
+                    if mpe.empty:
+                        mpe = cpts[key]
+                    else:
+                        mpe = self.factor_multiplication(mpe, cpts[key])
+                    cpts.pop(key)
+            mpe = self.maxing_out(variable, mpe)
 
-    def map(Q: list[str], e: pd.Series):
-        if e.any():
-            pass
-
-    def mpe(e: pd.Series):
-        if e.any():
-            pass
+        return mpe   
 
 if __name__ == '__main__':
-    bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
-    bn_reasoner.marginal_distribution(['Sprinkler?'], pd.Series({'Winter?': True}))
+    bn_reasoner = BNReasoner('testing/lecture_example2.BIFXML')
