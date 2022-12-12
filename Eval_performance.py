@@ -27,8 +27,12 @@ speeddict_mindegreempelec2 = dict()
 speeddict_mindegreemapdog =dict()
 speeddict_mindegreemaplec1 =dict()
 speeddict_mindegreemaplec2 =dict()
-speeddict = [speeddict_mindegree, speeddict_minfill, speeddict_minfillmpedog, speeddict_minfillmpelec1, speeddict_minfillmpelec2, speeddict_minfillmapdog, speeddict_minfillmaplec1, speeddict_minfillmaplec2, speeddict_mindegreempedog, speeddict_mindegreempelec1, speeddict_mindegreempelec2, speeddict_mindegreemapdog, speeddict_mindegreemaplec1, speeddict_mindegreemaplec2] 
-
+speeddict_unprunedlec1 = dict()
+speeddict_prunedlec1 = dict()
+speeddict_unprunedlec2 = dict()
+speeddict_prunedlec2 =dict()
+speeddict = [speeddict_mindegree, speeddict_minfill, speeddict_minfillmpedog, speeddict_minfillmpelec1, speeddict_minfillmpelec2, speeddict_minfillmapdog, speeddict_minfillmaplec1, speeddict_minfillmaplec2, speeddict_mindegreempedog, speeddict_mindegreempelec1, speeddict_mindegreempelec2, speeddict_mindegreemapdog, speeddict_mindegreemaplec1, speeddict_mindegreemaplec2, speeddict_unprunedlec1, speeddict_prunedlec1, speeddict_unprunedlec2, speeddict_prunedlec2] 
+speeddictstr =  ['speeddict_mindegree', 'speeddict_minfill', 'speeddict_minfillmpedog', 'speeddict_minfillmpelec1', 'speeddict_minfillmpelec2', 'speeddict_minfillmapdog', 'speeddict_minfillmaplec1', 'speeddict_minfillmaplec2', 'speeddict_mindegreempedog', 'speeddict_mindegreempelec1', 'speeddict_mindegreempelec2', 'speeddict_mindegreemapdog', 'speeddict_mindegreemaplec1', 'speeddict_mindegreemaplec2', 'speeddict_unprunedlec1', 'speeddict_prunedlec1', 'speeddict_unprunedlec2', 'speeddict_prunedlec2'] 
 for ele in files:
     net = BNReasoner(ele)
     variables = net.bn.get_all_variables()
@@ -164,6 +168,53 @@ speed = end - start
 speeddict_mindegreemaplec2['testing/lecture_example2.BIFXML'] = speed
 
 
-print(speeddict)
 
 
+
+
+
+
+
+net = BNReasoner('testing/lecture_example.BIFXML')
+variables = net.bn.get_all_variables()
+start = time.time()
+net.prune_bn(variables, pd.Series({'Rain?': True, 'Wet Grass?': True}))
+net.variable_elimination(variables, net.min_degree_ordering(variables))
+end = time.time()
+speed = end - start
+speeddict_prunedlec1['testing/lecture_example.BIFXML'] = speed
+
+
+net = BNReasoner('testing/lecture_example.BIFXML')
+variables = net.bn.get_all_variables()
+start = time.time()
+net.variable_elimination(variables, net.min_degree_ordering(variables))
+end = time.time()
+speed = end - start
+speeddict_unprunedlec1['testing/lecture_example.BIFXML'] = speed
+
+
+net = BNReasoner('testing/lecture_example2.BIFXML')
+variables = net.bn.get_all_variables()
+start = time.time()
+net.prune_bn(variables, pd.Series({'I': True, 'Y': True}))
+net.variable_elimination(variables, net.min_degree_ordering(variables))
+end = time.time()
+speed = end - start
+speeddict_prunedlec2['testing/lecture_example2.BIFXML'] = speed
+
+net = BNReasoner('testing/lecture_example2.BIFXML')
+variables = net.bn.get_all_variables()
+start = time.time()
+net.variable_elimination(variables, net.min_degree_ordering(variables))
+end = time.time()
+speed = end - start
+speeddict_unprunedlec2['testing/lecture_example2.BIFXML'] = speed
+
+
+for i,v in enumerate(speeddict):
+    print(speeddictstr[i])
+    print('==========')
+    print(v)
+    print('\n')
+    

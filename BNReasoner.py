@@ -392,7 +392,7 @@ class BNReasoner:
                                     mpe = self.maxing_out(self._get_variables_from_cpt(mpe)[0], mpe)
 
                                 while bool(self._get_variables_from_cpt(cpts[key])):
-                                    cpts[key] = self.maxing_out(self._get_variables_from_cpt(cpts[key][0])[0], cpts[key])
+                                    cpts[key] = self.maxing_out(self._get_variables_from_cpt(cpts[key])[0], cpts[key])
 
                                 mpe = self.factor_multiplication(mpe, cpts[key])
 
