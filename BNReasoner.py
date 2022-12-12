@@ -77,7 +77,8 @@ class BNReasoner:
         return self.d_separation(X, Y, Z) 
 
     def marginalization(self, X: str, cpt: pd.DataFrame) -> pd.DataFrame:
-        Y = cpt.loc[:, ~cpt.columns.isin([X, 'p', 'Instantiations'])].columns.tolist()
+        Y = self._get_variables_from_cpt(cpt)
+        Y.remove(X)
 
         if not Y:
             # Empty set of variables, so only return p (Trival factor)
@@ -97,7 +98,8 @@ class BNReasoner:
 
     def maxing_out(self, X: str, cpt: pd.DataFrame) -> pd.DataFrame:
         # Exclude X and p from cpt
-        Y = cpt.loc[:, ~cpt.columns.isin([X, 'p', 'Instantiations'])].columns.tolist()
+        Y = self._get_variables_from_cpt(cpt)
+        Y.remove(X)
 
         if not Y:
             # Empty set of variables, so only return p (Trival factor)
@@ -138,8 +140,8 @@ class BNReasoner:
         
     def factor_multiplication(self, cpt_1: pd.DataFrame, cpt_2: pd.DataFrame) -> pd.DataFrame:
         # Get all variables from both
-        Y = cpt_1.loc[:, ~cpt_1.columns.isin(['p', 'Instantiations'])].columns.tolist()
-        Z = cpt_2.loc[:, ~cpt_2.columns.isin(['p', 'Instantiations'])].columns.tolist()
+        Y = self._get_variables_from_cpt(cpt_1)
+        Z = self._get_variables_from_cpt(cpt_2)
 
         if not Y and not Z:
             # Both are empty, meaning they are trivial factors
@@ -322,7 +324,7 @@ class BNReasoner:
         # No evidence, just return distribution
         return distribution
 
-    def map(self, Q: list[str], e: pd.Series, order: list[str]):
+    def map(self, Q: list[str], e: pd.Series, order: list[str]) -> pd.DataFrame:
         # Get all cpts
         cpts = self.bn.get_all_cpts()
 
@@ -350,13 +352,23 @@ class BNReasoner:
                         if map.empty:
                             map = results[key]
                         else:
-                            map = self.factor_multiplication(map, results[key])
+                            try:
+                                map = self.factor_multiplication(map, results[key])
+                            except ValueError:
+                                while bool(self._get_variables_from_cpt(map)):
+                                    map = self.maxing_out(self._get_variables_from_cpt(map)[0], map)
+
+                                while bool(self._get_variables_from_cpt(results[key])):
+                                    results[key] = self.maxing_out(self._get_variables_from_cpt(results[key][0])[0], results[key])
+
+                                map = self.factor_multiplication(map, results[key])
+
                         results.pop(key)
             map = self.maxing_out(variable, map)
 
         return map            
 
-    def mpe(self, e: pd.Series, order: list[str]):
+    def mpe(self, e: pd.Series, order: list[str]) -> pd.DataFrame:
         # Get all cpts and variables
         cpts = self.bn.get_all_cpts()
         variables = self.bn.get_all_variables()
@@ -373,11 +385,25 @@ class BNReasoner:
                     if mpe.empty:
                         mpe = cpts[key]
                     else:
-                        mpe = self.factor_multiplication(mpe, cpts[key])
+                            try:
+                                mpe = self.factor_multiplication(mpe, cpts[key])
+                            except ValueError:
+                                while bool(self._get_variables_from_cpt(mpe)):
+                                    mpe = self.maxing_out(self._get_variables_from_cpt(mpe)[0], mpe)
+
+                                while bool(self._get_variables_from_cpt(cpts[key])):
+                                    cpts[key] = self.maxing_out(self._get_variables_from_cpt(cpts[key][0])[0], cpts[key])
+
+                                mpe = self.factor_multiplication(mpe, cpts[key])
+
                     cpts.pop(key)
             mpe = self.maxing_out(variable, mpe)
 
         return mpe   
 
+    def _get_variables_from_cpt(self, cpt: pd.DataFrame) -> list[str]:
+        return cpt.loc[:, ~cpt.columns.isin(['p', 'Instantiations'])].columns.tolist()
+
 if __name__ == '__main__':
-    bn_reasoner = BNReasoner('/Users/orbaytopal/Desktop/VUAI.nosync/Master/KR21_project2/Evaldata/Bif_imdb_MovieLens.xml')
+    bn_reasoner = BNReasoner('testing/lecture_example2.BIFXML')
+    print(bn_reasoner.mpe(pd.Series({'J': True, 'O': False}), ['J', 'I', 'X', 'Y', 'O']))
