@@ -345,6 +345,8 @@ class BNReasoner:
         
         # Max out Q according to order, to obtain most likely instances
         map = pd.DataFrame()
+        max_out_var = True 
+
         for variable in order:
             if variable in Q:
                 for key in list(results):
@@ -355,16 +357,19 @@ class BNReasoner:
                             try:
                                 map = self.factor_multiplication(map, results[key])
                             except ValueError:
+                                # Independent variables detected. Max out already
+                                max_out_var = False
                                 while bool(self._get_variables_from_cpt(map)):
                                     map = self.maxing_out(self._get_variables_from_cpt(map)[0], map)
 
                                 while bool(self._get_variables_from_cpt(results[key])):
-                                    results[key] = self.maxing_out(self._get_variables_from_cpt(results[key][0])[0], results[key])
+                                    results[key] = self.maxing_out(self._get_variables_from_cpt(results[key])[0], results[key])
 
                                 map = self.factor_multiplication(map, results[key])
 
                         results.pop(key)
-            map = self.maxing_out(variable, map)
+            if max_out_var:
+                map = self.maxing_out(variable, map)
 
         return map            
 
@@ -379,6 +384,8 @@ class BNReasoner:
 
         # Max out Q according to order, to obtain most likely instances
         mpe = pd.DataFrame()
+        max_out_var = True 
+
         for variable in order:
             for key in list(cpts):
                 if variable in cpts[key]:
@@ -388,6 +395,8 @@ class BNReasoner:
                             try:
                                 mpe = self.factor_multiplication(mpe, cpts[key])
                             except ValueError:
+                                # Independent variables detected. Max out already
+                                max_out_var = False
                                 while bool(self._get_variables_from_cpt(mpe)):
                                     mpe = self.maxing_out(self._get_variables_from_cpt(mpe)[0], mpe)
 
@@ -397,7 +406,9 @@ class BNReasoner:
                                 mpe = self.factor_multiplication(mpe, cpts[key])
 
                     cpts.pop(key)
-            mpe = self.maxing_out(variable, mpe)
+
+            if max_out_var:
+                mpe = self.maxing_out(variable, mpe)
 
         return mpe   
 
@@ -405,5 +416,7 @@ class BNReasoner:
         return cpt.loc[:, ~cpt.columns.isin(['p', 'Instantiations'])].columns.tolist()
 
 if __name__ == '__main__':
+    bn_reasoner = BNReasoner('testing/dog_problem.BIFXML')
+    print(bn_reasoner.mpe(pd.Series({'light-on': True, 'family-out': False}), bn_reasoner.min_fill_ordering(bn_reasoner.bn.get_all_variables())))
     bn_reasoner = BNReasoner('testing/lecture_example2.BIFXML')
     print(bn_reasoner.mpe(pd.Series({'J': True, 'O': False}), ['J', 'I', 'X', 'Y', 'O']))
