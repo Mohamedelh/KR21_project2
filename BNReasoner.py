@@ -359,7 +359,7 @@ class BNReasoner:
                                     map = self.maxing_out(self._get_variables_from_cpt(map)[0], map)
 
                                 while bool(self._get_variables_from_cpt(results[key])):
-                                    results[key] = self.maxing_out(self._get_variables_from_cpt(results[key][0])[0], results[key])
+                                    results[key] = self.maxing_out(self._get_variables_from_cpt(results[key])[0], results[key])
 
                                 map = self.factor_multiplication(map, results[key])
 
