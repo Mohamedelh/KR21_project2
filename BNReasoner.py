@@ -516,6 +516,9 @@ class BNReasoner:
         return cpt.loc[:, ~cpt.columns.isin(['p', 'Instantiations'])].columns.tolist()
 
 if __name__ == '__main__':
-    bn_reasoner = BNReasoner('testing/test.BIFXML')
-    merged_cpt = bn_reasoner.factor_multiplication(bn_reasoner.bn.get_cpt('A'), bn_reasoner.bn.get_cpt('B'))
-    print(merged_cpt.loc[(merged_cpt['A'] == False) & (merged_cpt['B'] == False)])
+    net = BNReasoner('testing/dog_problem.BIFXML')
+    variables = net.bn.get_all_variables()
+    net.prune_bn(['light-on'], pd.Series({'bowel-problem': True, 'family-out': True}))
+    print(net.map(['light-on'], pd.Series({'bowel-problem': True, 'family-out': True}), net.min_fill_ordering(variables)))
+  
+    

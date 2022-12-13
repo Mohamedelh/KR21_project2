@@ -170,17 +170,16 @@ speed = end - start
 speeddict_mindegreemaplec2['testing/lecture_example2.BIFXML'] = speed
 
 
-
+######################PRUNED VS UNPRUNED###############
 
 
 
 
 net = BNReasoner('testing/dog_problem.BIFXML')
+net.prune_bn(['light-on'], pd.Series({'bowel-problem': True, 'family-out': True}))
 variables = net.bn.get_all_variables()
 start = time.time()
-net.prune_bn(variables, pd.Series({'bowel-problem': True, 'family-out': True}))
-net.variable_elimination(variables, net.min_degree_ordering(variables))
-
+net.map('light-on', pd.Series({'bowel-problem': True, 'family-out': True}), net.min_fill_ordering(variables))
 end = time.time()
 speed = end - start
 speeddict_pruneddog['testing/dog_problem.BIFXML'] = speed
@@ -188,16 +187,17 @@ speeddict_pruneddog['testing/dog_problem.BIFXML'] = speed
 net = BNReasoner('testing/dog_problem.BIFXML')
 variables = net.bn.get_all_variables()
 start = time.time()
-net.variable_elimination(variables, net.min_degree_ordering(variables))
+net.map('light-on', pd.Series({'bowel-problem': True, 'family-out': True}), net.min_fill_ordering(variables) )
 end = time.time()
 speed = end - start
 speeddict_unpruneddog['testing/dog_problem.BIFXML'] = speed
 
+
 net = BNReasoner('testing/lecture_example.BIFXML')
+net.prune_bn(['Winter?'], pd.Series({'Rain?': True, 'Wet Grass?': True}))
 variables = net.bn.get_all_variables()
 start = time.time()
-net.prune_bn(variables, pd.Series({'Rain?': True, 'Wet Grass?': True}))
-net.variable_elimination(variables, net.min_degree_ordering(variables))
+net.map('Winter?', pd.Series({'Rain?': True, 'Wet Grass?': True}), net.min_fill_ordering(variables))
 end = time.time()
 speed = end - start
 speeddict_prunedlec1['testing/lecture_example.BIFXML'] = speed
@@ -206,17 +206,17 @@ speeddict_prunedlec1['testing/lecture_example.BIFXML'] = speed
 net = BNReasoner('testing/lecture_example.BIFXML')
 variables = net.bn.get_all_variables()
 start = time.time()
-net.variable_elimination(variables, net.min_degree_ordering(variables))
+net.map('Winter?', pd.Series({'Rain?': True, 'Wet Grass?': True}), net.min_fill_ordering(variables))
 end = time.time()
 speed = end - start
 speeddict_unprunedlec1['testing/lecture_example.BIFXML'] = speed
 
 
 net = BNReasoner('testing/lecture_example2.BIFXML')
+net.prune_bn(['X'], pd.Series({'I': True, 'Y': True}))
 variables = net.bn.get_all_variables()
 start = time.time()
-net.prune_bn(variables, pd.Series({'I': True, 'Y': True}))
-net.variable_elimination(variables, net.min_degree_ordering(variables))
+net.map('X',pd.Series({'I': True, 'Y': True}), net.min_fill_ordering(variables))
 end = time.time()
 speed = end - start
 speeddict_prunedlec2['testing/lecture_example2.BIFXML'] = speed
@@ -224,7 +224,7 @@ speeddict_prunedlec2['testing/lecture_example2.BIFXML'] = speed
 net = BNReasoner('testing/lecture_example2.BIFXML')
 variables = net.bn.get_all_variables()
 start = time.time()
-net.variable_elimination(variables, net.min_degree_ordering(variables))
+net.map('X',pd.Series({'I': True, 'Y': True}), net.min_fill_ordering(variables))
 end = time.time()
 speed = end - start
 speeddict_unprunedlec2['testing/lecture_example2.BIFXML'] = speed
