@@ -20,23 +20,40 @@ class BNReasoner:
             self.bn = net
 
     def prune_bn(self, Q: list[str], e: pd.Series) -> None:
+        """ Simplifies a bayesian network for queries of the form Pr(Q|e)
+        by pruning edges and nodes
+
+        :param Q: a set of variables of which the probability needs to be computed
+        :param e: a set of evidences that may affect the probability of Q
+        """
         self._prune_edges(e)
         self._prune_nodes(Q, e)
 
     def _prune_edges(self, e: pd.Series) -> None:
+        """ Prunes edges outgoing from nodes in e. It does so performing
+        factor reduction on rows for a given node, that are not compatible with e
+
+        :param e: a set of evidences that cause the pruning of edges
+        """
         for variable in e.keys():
             # Update CPT of variable with reduced factor
-            self.bn.update_cpt(variable, self.bn.reduce_factor(e, self.bn.get_cpt(variable)))
+            self.bn.update_cpt(variable, self.bn.get_compatible_instantiations_table(e, self.bn.get_cpt(variable)))
 
             descendants = self.bn.get_children(variable)
             for descendant in descendants:
                 # Update CPT of descendant with reduced factor
-                self.bn.update_cpt(descendant, self.bn.reduce_factor(e, self.bn.get_cpt(descendant)))
+                self.bn.update_cpt(descendant, self.bn.get_compatible_instantiations_table(e, self.bn.get_cpt(descendant)))
 
                 # Remove edge from network
                 self.bn.del_edge((variable, descendant))
 
     def _prune_nodes(self, Q: list[str], e: pd.Series) -> None:
+        """ Prunes nodes by deleting leaf variables that are not in Q or e
+
+        :param Q: a set of variables that cause the pruning of nodes
+        :param e: a set of evidences, of which the variables cause the 
+        pruning of nodes
+        """
         while True:
             # Get all "leaf nodes" variables (thus do not have descendants)
             leaf_variables = []
@@ -51,6 +68,14 @@ class BNReasoner:
                 self.bn.del_var(variable)   
     
     def d_separation(self, X: list[str], Y: list[str], Z: list[str]) -> bool:
+        """ Checks whether X and Y are D-separated by Z, by pruning the
+        DAG and checking afterwards whether X and Y are connected or not
+
+        :param X: a set of variables
+        :param Y: a set of variables
+        :param Z: a set of variables 
+        :returns: True if X and Y are D-seperated, otherwise False
+        """
         bn = deepcopy(self.bn)
 
         while True:
@@ -73,6 +98,14 @@ class BNReasoner:
                  return not nx.has_path(self.bn.structure, X, Y)             
 
     def independence(self, X: list[str], Y: list[str], Z: list[str]) -> bool:
+        """ Checks whether X is independent of Y given Z, by checking
+        whether X and Y are D-separated given Z
+
+        :param X: a set of variables
+        :param Y: a set of variables
+        :param Z: a set of variables 
+        :returns: True if X and Y are independent of each other, otherwise False
+        """
         # Each d-separation implies an independence in a Bayesian network
         return self.d_separation(X, Y, Z) 
 
@@ -416,7 +449,11 @@ class BNReasoner:
         return cpt.loc[:, ~cpt.columns.isin(['p', 'Instantiations'])].columns.tolist()
 
 if __name__ == '__main__':
-    bn_reasoner = BNReasoner('testing/dog_problem.BIFXML')
-    print(bn_reasoner.mpe(pd.Series({'light-on': True, 'family-out': False}), bn_reasoner.min_fill_ordering(bn_reasoner.bn.get_all_variables())))
-    bn_reasoner = BNReasoner('testing/lecture_example2.BIFXML')
-    print(bn_reasoner.mpe(pd.Series({'J': True, 'O': False}), ['J', 'I', 'X', 'Y', 'O']))
+    bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
+    Q = ['Wet Grass?']
+    e = pd.Series({'Winter?': True, 'Rain?': False})
+
+    bn_reasoner.prune_bn(Q, e)
+
+    
+    print(bn_reasoner.bn.get_cpt('Wet Grass?'))

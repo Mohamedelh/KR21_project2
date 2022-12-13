@@ -1,32 +1,15 @@
 import pandas as pd
 from BNReasoner import BNReasoner
 
-TEST_FILE = "testing/lecture_example.BIFXML"
-
-def test_d_separation():
-    pass
-
-def test_marginalization():
+def test_prune_bn():
     bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
-    marginalized = bn_reasoner.marginalization('Rain?', bn_reasoner.bn.get_cpt('Slippery Road?'))
+    Q = ['Wet Grass?']
+    e = pd.Series({'Winter?': True, 'Rain?': False})
 
-    assert marginalized.shape[1] == 2
-    assert marginalized['Slippery Road?'].tolist() == [False, True] and marginalized['p'].tolist() == [1.3, 0.7]
+    bn_reasoner.prune_bn(Q, e)
 
-# def test_prune_network():
-#     bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
-#     bn_reasoner.prune_network(
-#         ['Wet Grass?'],
-#         pd.Series({'Rain?': False, 'Winter?': True})
-#     )
-
-#     # Network check
-#     assert bn_reasoner.bn.get_all_variables() == ['Winter?', 'Sprinkler?', 'Rain?', 'Wet Grass?']
-#     assert bn_reasoner.bn.get_children('Winter?') == []
-#     assert bn_reasoner.bn.get_children('Rain?') == []
-#     assert bn_reasoner.bn.get_children('Sprinkler?') == ['Wet Grass?']
-#     assert bn_reasoner.bn.get_children('Wet Grass?') == []
-
-#     # CPT check
-#     assert bn_reasoner.bn.get_cpt('Winter?')['p'].tolist() == [0.4, 0.6] and bn_reasoner.bn.get_cpt('Winter?')['Winter?'].tolist() == [False, True]
-#     assert bn_reasoner.bn.get_cpt('Rain?')['p'].tolist() == [0, 0, 0.2, 0]
+    assert sorted(bn_reasoner.bn.get_all_variables()) == sorted(['Winter?', 'Rain?', 'Sprinkler?', 'Wet Grass?'])
+    assert sorted(bn_reasoner._get_variables_from_cpt(bn_reasoner.bn.get_cpt('Wet Grass?'))) == sorted(['Wet Grass?', 'Sprinkler?'])
+    assert sorted(bn_reasoner._get_variables_from_cpt(bn_reasoner.bn.get_cpt('Sprinkler?'))) == sorted(['Sprinkler?'])
+    assert sorted(bn_reasoner._get_variables_from_cpt(bn_reasoner.bn.get_cpt('Rain?'))) == sorted(['Rain?'])
+    assert sorted(bn_reasoner._get_variables_from_cpt(bn_reasoner.bn.get_cpt('Winter?'))) == sorted(['Winter?'])
