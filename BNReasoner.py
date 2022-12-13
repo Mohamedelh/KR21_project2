@@ -387,10 +387,10 @@ class BNReasoner:
         results = self.variable_elimination(variables_to_eliminate, order, cpts)
         distribution = pd.DataFrame()
         for key in list(results):
-            if final_cpt.empty:
-                final_cpt = cpts[key]
+            if distribution.empty:
+                distribution = cpts[key]
             else:
-                final_cpt = self.factor_multiplication(final_cpt, cpts[key])
+                distribution = self.factor_multiplication(distribution, cpts[key])
 
         if e.any():
             # Sum out Q to obtain Pr(e)
@@ -398,8 +398,12 @@ class BNReasoner:
             for variable in Q:
                 pr_e = self.marginalization(variable, pr_e) if pr_e else self.marginalization(variable, distribution) 
 
+            pr_e = pr_e.iloc[0]['p']
+
             # Compute Pr(Q|e) through normalization
-            return distribution / pr_e
+            distribution['p'] /= pr_e
+
+            return distribution
 
         # No evidence, just return distribution
         return distribution
@@ -510,11 +514,5 @@ class BNReasoner:
         return cpt.loc[:, ~cpt.columns.isin(['p', 'Instantiations'])].columns.tolist()
 
 if __name__ == '__main__':
-    bn_reasoner = BNReasoner('testing/lecture_example.BIFXML')
-    Q = ['Wet Grass?']
-    e = pd.Series({'Winter?': True, 'Rain?': False})
-
-    bn_reasoner.prune_bn(Q, e)
-
-    
-    print(bn_reasoner.bn.get_cpt('Wet Grass?'))
+    bn_reasoner = BNReasoner('testing/test.BIFXML')
+    print(bn_reasoner.marginal_distribution(['C'], pd.Series({'A': True}), ['A', 'B']))
