@@ -14,8 +14,8 @@ def test_prune_bn():
     table_B = bn_reasoner.bn.get_cpt('B')
 
     assert sorted(variables) == sorted(['A', 'B'])
-    assert table_A.loc[table_A['A'] == True]['p'].iloc[0] == 0.6
-    assert table_B.loc[table_B['B'] == False]['p'].iloc[0] == 0.1 and table_B.loc[table_B['B'] == True]['p'].iloc[0] == 0.9
+    assert round(table_A.loc[table_A['A'] == True]['p'].iloc[0], 1) == 0.6
+    assert round(table_B.loc[table_B['B'] == False]['p'].iloc[0], 1) == 0.1 and round(table_B.loc[table_B['B'] == True]['p'].iloc[0], 1) == 0.9
     
 def test_d_separation():
     bn_reasoner = BNReasoner(TEST_FILE)
@@ -32,3 +32,38 @@ def test_independence():
     Z = ['B']
 
     assert bn_reasoner.independence(X, Y, Z) == True
+
+def test_marginalization():
+    bn_reasoner = BNReasoner(TEST_FILE)
+    summed_out_A = bn_reasoner.marginalization('A', bn_reasoner.bn.get_cpt('B'))
+
+    assert round(summed_out_A.loc[summed_out_A['B'] == True]['p'].iloc[0], 1) == 1.1 and round(summed_out_A.loc[summed_out_A['B'] == False]['p'].iloc[0], 1) == 0.9
+
+def test_maxing_out():
+    bn_reasoner = BNReasoner(TEST_FILE)
+    maxed_out_A = bn_reasoner.maxing_out('A', bn_reasoner.bn.get_cpt('B'))
+
+    assert round(maxed_out_A.loc[maxed_out_A['B'] == True]['p'].iloc[0], 1) == 0.9 and round(maxed_out_A.loc[maxed_out_A['B'] == False]['p'].iloc[0], 1) == 0.8
+    assert maxed_out_A.loc[maxed_out_A['B'] == True]['Instantiations'].iloc[0]['A'] == True and maxed_out_A.loc[maxed_out_A['B'] == False]['Instantiations'].iloc[0]['A'] == False
+
+def test_factor_multiplication():
+    bn_reasoner = BNReasoner(TEST_FILE)
+    merged_cpt = bn_reasoner.factor_multiplication(bn_reasoner.bn.get_cpt('A'), bn_reasoner.bn.get_cpt('B'))
+
+    assert round(merged_cpt.loc[(merged_cpt['A'] == False) & (merged_cpt['B'] == False)]['p'].iloc[0], 2) == 0.32
+    assert round(merged_cpt.loc[(merged_cpt['A'] == False) & (merged_cpt['B'] == True)]['p'].iloc[0], 2) == 0.08
+    assert round(merged_cpt.loc[(merged_cpt['A'] == True) & (merged_cpt['B'] == False)]['p'].iloc[0], 2) == 0.06
+    assert round(merged_cpt.loc[(merged_cpt['A'] == True) & (merged_cpt['B'] == True)]['p'].iloc[0], 2) == 0.54
+
+def test_min_degree_ordering():
+    bn_reasoner = BNReasoner(TEST_FILE)
+    order = bn_reasoner.min_degree_ordering(['A', 'B', 'C'])
+
+    assert order == ['A', 'B', 'C']
+
+def test_min_fill_ordering():
+    bn_reasoner = BNReasoner(TEST_FILE)
+    order = bn_reasoner.min_fill_ordering(['A', 'B', 'C'])
+
+    assert order == ['A', 'B', 'C']
+    
