@@ -110,6 +110,13 @@ class BNReasoner:
         return self.d_separation(X, Y, Z) 
 
     def marginalization(self, X: str, cpt: pd.DataFrame) -> pd.DataFrame:
+        """ Sums out variable X from a CPT
+
+        :param X: a variable that is to be summed out
+        :param cpt: the conditional probability table where X is to be 
+        summed out
+        :returns: a new CPT with X summed out
+        """
         Y = self._get_variables_from_cpt(cpt)
         Y.remove(X)
 
@@ -130,6 +137,13 @@ class BNReasoner:
         return cpt.loc[:, ~cpt.columns.isin([X])].groupby(Y).sum().reset_index()
 
     def maxing_out(self, X: str, cpt: pd.DataFrame) -> pd.DataFrame:
+        """ Maxes out variable X from a CPT
+
+        :param X: a variable that is to be maxed out
+        :param cpt: the conditional probability table where X is to be 
+        maxed out
+        :returns: a new CPT with X maxed out
+        """
         # Exclude X and p from cpt
         Y = self._get_variables_from_cpt(cpt)
         Y.remove(X)
@@ -172,6 +186,12 @@ class BNReasoner:
         return maxed_cpt.drop([X], axis=1)
         
     def factor_multiplication(self, cpt_1: pd.DataFrame, cpt_2: pd.DataFrame) -> pd.DataFrame:
+        """ Merges two CPT's by multiplying the rows with intersecting variables
+
+        :param cpt_1: one of the CPT's that is to be merged
+        :param cpt_2: one of the CPT's that is to be merged
+        :returns: new CPT with both CPT's merged
+        """
         # Get all variables from both
         Y = self._get_variables_from_cpt(cpt_1)
         Z = self._get_variables_from_cpt(cpt_2)
@@ -243,6 +263,12 @@ class BNReasoner:
         return new_cpt
 
     def min_degree_ordering(self, X: list[str]) -> list[str]:
+        """ Returns an elimination order based on minimum amount of
+        degrees (i.e. minimum amount of dependencies)
+
+        :param X: a set of variables that is to be ordered
+        :returns: an ordered list of variables
+        """
         interaction_graph = self.bn.get_interaction_graph()
         nodes = deepcopy(X)
         ordering = []
@@ -262,6 +288,12 @@ class BNReasoner:
         return ordering
 
     def min_fill_ordering(self, X: list[str]) -> list[str]:
+        """ Returns an elimination order based on minimum amount of
+        new interactions (i.e. new dependencies)
+
+        :param X: a set of variables that is to be ordered
+        :returns: an ordered list of variables
+        """
         interaction_graph = self.bn.get_interaction_graph()
         nodes = deepcopy(X)
         ordering = []
@@ -296,6 +328,14 @@ class BNReasoner:
         return ordering
 
     def variable_elimination(self, X: list[str], order: list[str], cpts: dict[str, pd.DataFrame] = None) -> dict[str, pd.DataFrame]:
+        """ Eliminates a set of variables X from all or selected CPTs, using an 
+        elimination order
+
+        :param X: list of variables that are to be eliminated
+        :param order: the elimination order
+        :param cpts: the CPTs where the variables are to be eliminated
+        :returns: all CPTs without variables X.
+        """
         # Get all CPTs
         cpts = self.bn.get_all_cpts() if not cpts else cpts
 
@@ -322,6 +362,13 @@ class BNReasoner:
         return cpts
 
     def marginal_distribution(self, Q: list[str], e: pd.Series, order: list[str]) -> pd.DataFrame:
+        """ Computes the distribution of Q given e 
+
+        :param Q: a set of variables
+        :param e: the evidence
+        :param order: the elimination order
+        :returns: the distribution of Q given e
+        """
         # Get all cpts
         cpts = self.bn.get_all_cpts()
 
@@ -358,6 +405,13 @@ class BNReasoner:
         return distribution
 
     def map(self, Q: list[str], e: pd.Series, order: list[str]) -> pd.DataFrame:
+        """ Computes the most likely instantiations of Q given evidence e
+
+        :param Q: a list of variables whose most likely instantiation needs to be computed
+        :param e: the evidence
+        :param order: the order used for elimination order
+        :returns: the most likely instantiations in a CPT
+        """
         # Get all cpts
         cpts = self.bn.get_all_cpts()
 
@@ -407,6 +461,13 @@ class BNReasoner:
         return map            
 
     def mpe(self, e: pd.Series, order: list[str]) -> pd.DataFrame:
+        """ Computes the most likely instantiations of all
+        variables except evidence.
+
+        :param e: the evidence
+        :param order: the order used for elimination order
+        :returns: the most likely instantiations in a CPT
+        """
         # Get all cpts and variables
         cpts = self.bn.get_all_cpts()
         variables = self.bn.get_all_variables()
