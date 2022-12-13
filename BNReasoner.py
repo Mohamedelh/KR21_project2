@@ -78,6 +78,15 @@ class BNReasoner:
         """
         bn = deepcopy(self.bn)
 
+        # Remove outging edges from Z
+        for z in Z:
+            descendants = self.bn.get_children(z)
+            for descendant in descendants:
+                bn.del_edge((z, descendant))
+
+        for z in Z:
+            print(self.bn.get_children(z))
+
         while True:
             leaf_variables = []
             for variable in self.bn.get_all_variables():
@@ -85,17 +94,10 @@ class BNReasoner:
                     leaf_variables.append(variable)
                     bn.del_var(variable)
 
-            edges = []
-            for z in Z:
-                descendants = self.bn.get_children(z)
-                edges += descendants
-                for descendant in descendants:
-                    bn.del_edge((z, descendant))
-            
-            if not (leaf_variables or edges):
+            if not (leaf_variables):
                 # Check if X and Y are connected through edges in a pruned network.
                 # If not, then they are d-separated.
-                 return not nx.has_path(self.bn.structure, X, Y)             
+                return not all(any(nx.has_path(self.bn.structure, start, end) for end in Y) for start in X)      
 
     def independence(self, X: list[str], Y: list[str], Z: list[str]) -> bool:
         """ Checks whether X is independent of Y given Z, by checking
@@ -145,7 +147,7 @@ class BNReasoner:
         :returns: a new CPT with X maxed out
         """
         # Exclude X and p from cpt
-        Y = self._get_variables_from_cpt(cpt)
+        Y = self._get_variables_from_cpt(cpt)        
         Y.remove(X)
 
         if not Y:
@@ -459,8 +461,8 @@ class BNReasoner:
                                 map = self.factor_multiplication(map, results[key])
 
                         results.pop(key)
-            if max_out_var:
-                map = self.maxing_out(variable, map)
+                if max_out_var:
+                    map = self.maxing_out(variable, map)
 
         return map            
 
@@ -480,7 +482,7 @@ class BNReasoner:
         for variable in variables:
             cpts[variable] = self.bn.reduce_factor(e, cpts[variable])
 
-        # Max out Q according to order, to obtain most likely instances
+        # Max out according to order, to obtain most likely instances
         mpe = pd.DataFrame()
         max_out_var = True 
 
@@ -514,5 +516,5 @@ class BNReasoner:
         return cpt.loc[:, ~cpt.columns.isin(['p', 'Instantiations'])].columns.tolist()
 
 if __name__ == '__main__':
-    bn_reasoner = BNReasoner('testing/test.BIFXML')
-    print(bn_reasoner.marginal_distribution(['C'], pd.Series({'A': True}), ['A', 'B']))
+    bn_reasoner = BNReasoner('testing/dog_problem.BIFXML')
+    bn_reasoner.map('light-on', pd.Series({'bowel-problem': True, 'family-out': True}), bn_reasoner.min_fill_ordering(['light-on', 'bowel-problem', 'family-out']))
