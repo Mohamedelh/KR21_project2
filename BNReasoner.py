@@ -354,7 +354,7 @@ class BNReasoner:
                             cpts_to_merge = self.factor_multiplication(cpts_to_merge, cpts[key])
 
                         if variable != key:
-                            label += key.replace(variable, "")
+                            label += variable
                         cpts.pop(key)
                 
                 # Sum out variable from merged cpt and add it to list of cpts
@@ -363,8 +363,34 @@ class BNReasoner:
         
         return cpts
 
+    def prior_marginal(self, X: list[str], order: list[str]) -> pd.DataFrame:
+        """ Computes prior marginal
+
+        :param X: list of variables
+        :param order: the elimination order
+        :returns: CPT containing prior marginal.
+        """
+        # Get all variables that are not in Q
+        variables_to_eliminate = []
+        for variable in self.bn.get_all_variables():
+            if variable not in X:
+                variables_to_eliminate.append(variable)
+
+        # Elimate the variables
+        results = self.variable_elimination(variables_to_eliminate, order)
+
+        # Multiply all variables together
+        prior_marginal = pd.DataFrame()
+        for key in list(results):
+            if prior_marginal.empty:
+                prior_marginal = results[key]
+            else:
+                prior_marginal = self.factor_multiplication(prior_marginal, results[key])
+
+        return prior_marginal
+
     def marginal_distribution(self, Q: list[str], e: pd.Series, order: list[str]) -> pd.DataFrame:
-        """ Computes the distribution of Q given e 
+        """ Computes the distribution of Q given e (Posterior marginal)
 
         :param Q: a set of variables
         :param e: the evidence
@@ -390,9 +416,9 @@ class BNReasoner:
         distribution = pd.DataFrame()
         for key in list(results):
             if distribution.empty:
-                distribution = cpts[key]
+                distribution = results[key]
             else:
-                distribution = self.factor_multiplication(distribution, cpts[key])
+                distribution = self.factor_multiplication(distribution, results[key])
 
         if e.any():
             # Sum out Q to obtain Pr(e)
@@ -516,6 +542,29 @@ class BNReasoner:
         return cpt.loc[:, ~cpt.columns.isin(['p', 'Instantiations'])].columns.tolist()
 
 if __name__ == '__main__':
-    bn_reasoner = BNReasoner('testing/test.BIFXML')
-    merged_cpt = bn_reasoner.factor_multiplication(bn_reasoner.bn.get_cpt('A'), bn_reasoner.bn.get_cpt('B'))
-    print(merged_cpt.loc[(merged_cpt['A'] == False) & (merged_cpt['B'] == False)])
+    # Insert bayesian network file folder name here
+    BAYESIAN_NETWORK_FOLDER = 'testing/test.BIFXML'
+    bn_reasoner = BNReasoner(BAYESIAN_NETWORK_FOLDER)
+
+    # Define a Prior Marginal query here:
+    print("PRIOR MARGINAL QUERY: ")
+    Q = ['Variable1', 'Variable2']
+    print(bn_reasoner.prior_marginal(Q, bn_reasoner.bn.get_all_variables()))
+
+
+    # Define a posterior marginal query here:
+    print("POSTERIOR MARGINAL QUERY: ")
+    Q = ['AnotherVariableName']
+    e = pd.Series({'VariableName': True})
+    print(bn_reasoner.marginal_distribution(Q, e, bn_reasoner.bn.get_all_variables()))
+
+    # Define a MAP query:
+    print("MAP QUERY: ")
+    Q = ['AnotherVariableName']
+    e = pd.Series({'VariableName': True})
+    print(bn_reasoner.map(Q, e, bn_reasoner.bn.get_all_variables()))
+
+    # Define a MEP query:
+    print("MEP QUERY: ")
+    e = pd.Series({'VariableName': True})
+    print(bn_reasoner.mpe(e, bn_reasoner.bn.get_all_variables()))

@@ -66,4 +66,47 @@ def test_min_fill_ordering():
     order = bn_reasoner.min_fill_ordering(['A', 'B', 'C'])
 
     assert order == ['A', 'B', 'C']
+
+def test_variable_elimination():
+    bn_reasoner = BNReasoner(TEST_FILE)
+    eliminated_cpt = bn_reasoner.variable_elimination(['A', 'C'], ['C', 'B', 'A'], {'B': bn_reasoner.bn.get_cpt('B'), 'C': bn_reasoner.bn.get_cpt('C')})
+    eliminated_cpt = bn_reasoner.factor_multiplication(eliminated_cpt['C'], eliminated_cpt['AA'])
+
+    assert round(eliminated_cpt.loc[(eliminated_cpt['B'] == True)]['p'].iloc[0], 1) == 1.1
+    assert round(eliminated_cpt.loc[(eliminated_cpt['B'] == False)]['p'].iloc[0], 1) == 0.9
+
+def test_marginal_distribution():
+    bn_reasoner = BNReasoner(TEST_FILE)
+    distribution = bn_reasoner.marginal_distribution(
+        ['C'],
+        pd.Series({
+            'A': True
+        }),
+        ['C', 'B', 'A']
+    )
     
+    assert round(distribution.loc[(distribution['C'] == True)]['p'].iloc[0], 2) == 0.32
+    assert round(distribution.loc[(distribution['C'] == False)]['p'].iloc[0], 2) == 0.68
+
+def test_map():
+    bn_reasoner = BNReasoner(TEST_FILE)
+    map = bn_reasoner.map(
+        ['A'],
+        pd.Series({
+            'C': True
+        }),
+        ['A', 'B', 'C']
+    )
+
+    assert map['Instantiations'].iloc[0]['A'] == True
+
+def test_mpe():
+    bn_reasoner = BNReasoner(TEST_FILE)
+    mpe = bn_reasoner.mpe(
+        pd.Series({
+            'C': True
+        }),
+        ['A', 'B', 'C']
+    )
+
+    assert mpe['Instantiations'].iloc[0]['A'] == True and mpe['Instantiations'].iloc[0]['B'] == True
