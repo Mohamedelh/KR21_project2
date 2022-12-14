@@ -546,6 +546,10 @@ if __name__ == '__main__':
     BAYESIAN_NETWORK_FOLDER = 'testing/test.BIFXML'
     bn_reasoner = BNReasoner(BAYESIAN_NETWORK_FOLDER)
 
+    # Here are the CPTs
+    print("ALL CPTS")
+    print(bn_reasoner.bn.get_all_cpts())
+
     # Define a Prior Marginal query here:
     print("PRIOR MARGINAL QUERY: ")
     Q = ['Variable1', 'Variable2']
